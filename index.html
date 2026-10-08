@@ -22,6 +22,8 @@
         .btn-success:hover { background-color: #157347; }
         .btn-whatsapp { background-color: #25d366; }
         .btn-whatsapp:hover { background-color: #1ebe5d; }
+        .btn-maps { background-color: #ffc107; color: #000; margin-top: 8px; }
+        .btn-maps:hover { background-color: #ffca2c; }
         .section-box { background: #ffffff; border: 1px solid #e9ecef; padding: 16px; border-radius: 10px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
         .history-item { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 8px; font-size: 0.9rem; border-left: 4px solid #198754; }
         .excel-upload-box { background: #e8f4fd; border: 2px dashed #0d6efd; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
@@ -50,8 +52,9 @@
         <h2 id="det-titulo" style="color: #0d6efd; margin-top: 0;"></h2>
         
         <div class="section-box">
-            <strong>📌 Información General (Excel)</strong>
-            <p id="det-info-general" style="line-height: 1.5; color: #495057;"></p>
+            <strong>📌 Información Completa del Excel</strong>
+            <div id="det-info-general" style="line-height: 1.6; color: #495057; font-size: 0.9rem; margin-top: 8px;"></div>
+            <button class="btn-maps" onclick="abrirGoogleMaps()">🗺️ Abrir Ubicación en Google Maps</button>
         </div>
 
         <div class="section-box">
@@ -71,9 +74,7 @@
 
         <div class="section-box">
             <strong>📷 Fotos del Sitio (Máximo 4)</strong>
-            <div class="photo-grid" id="photo-grid-container">
-                <!-- Se generan dinámicamente -->
-            </div>
+            <div class="photo-grid" id="photo-grid-container"></div>
         </div>
 
         <div class="section-box">
@@ -94,16 +95,18 @@
         <label>EMG:</label><input type="text" id="new-emg">
         <label>Localidad:</label><input type="text" id="new-localidad">
         <label>Dirección:</label><input type="text" id="new-direccion">
+        <label>Latitud:</label><input type="text" id="new-lat" placeholder="-34.xxxx">
+        <label>Longitud:</label><input type="text" id="new-lon" placeholder="-58.xxxx">
         <label>Contacto:</label><input type="text" id="new-contacto">
         <button class="btn-success" onclick="guardarNuevoSitio()">Guardar Nuevo Sitio</button>
     </div>
 
     <script>
-        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v3')) || [];
+        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v5')) || [];
         let sitioActualIndex = null;
 
         function guardarEnLocalStorage() {
-            localStorage.setItem('mis_sitios_real_v3', JSON.stringify(sitios));
+            localStorage.setItem('mis_sitios_real_v5', JSON.stringify(sitios));
         }
 
         function cargarExcel(e) {
@@ -120,15 +123,15 @@
                     ...s,
                     "historial": s.historial || [],
                     "fotos": s.fotos || [],
-                    "contacto": s.contacto || "",
-                    "Llaves de acceso": s["Llaves de acceso"] || "",
+                    "contacto": s.contacto || s["contacto"] || "",
+                    "Llaves de acceso": s["Llaves de acceso"] || s["Llaves"] || "",
                     "Litio": s.Litio || "",
                     "Zuncho": s.Zuncho || "",
                     "Detalle": s.Detalle || ""
                 }));
                 guardarEnLocalStorage();
                 renderLista(sitios);
-                alert(`¡Se cargaron ${sitios.length} sitios correctamente desde tu Excel!`);
+                alert(`¡Se cargaron ${sitios.length} sitios con todas sus columnas correctamente!`);
             };
             reader.readAsArrayBuffer(file);
         }
@@ -145,8 +148,8 @@
                 card.className = 'card';
                 card.onclick = () => abrirDetalle(index);
                 card.innerHTML = `
-                    <h3>${s['Código'] || 'S/C'} - ${s['Nombre'] || 'Sin Nombre'}</h3>
-                    <p><strong>Localidad:</strong> ${s['Localidad'] || 'N/D'} | <strong>EMG:</strong> ${s['EMG'] || 'N/D'}</p>
+                    <h3>${s['Código'] || s['Codigo'] || 'S/C'} - ${s['Nombre'] || 'Sin Nombre'}</h3>
+                    <p><strong>Localidad:</strong> ${s['Localidad'] || s['Localidad/Partido'] || 'N/D'} | <strong>EMG:</strong> ${s['EMG'] || 'N/D'}</p>
                     <p><strong>Contacto:</strong> ${s['contacto'] || 'Sin contacto'}</p>
                 `;
                 listDiv.appendChild(card);
@@ -155,18 +158,19 @@
                 const aviso = document.createElement('p');
                 aviso.style.textAlign = 'center';
                 aviso.style.color = '#6c757d';
-                aviso.innerText = `Mostrando los primeros 100 resultados de ${arraySitios.length}. Usa el buscador para encontrar un sitio específico.`;
+                aviso.innerText = `Mostrando los primeros 100 resultados de ${arraySitios.length}. Usa el buscador para filtrar.`;
                 listDiv.appendChild(aviso);
             }
         }
 
         function filtrarSitios() {
             const query = document.getElementById('search').value.toLowerCase();
-            const filtrados = sitios.filter(s => 
-                (s['Código'] && String(s['Código']).toLowerCase().includes(query)) ||
-                (s['Nombre'] && String(s['Nombre']).toLowerCase().includes(query)) ||
-                (s['Localidad'] && String(s['Localidad']).toLowerCase().includes(query))
-            );
+            const filtrados = sitios.filter(s => {
+                const cod = String(s['Código'] || s['Codigo'] || '').toLowerCase();
+                const nom = String(s['Nombre'] || '').toLowerCase();
+                const loc = String(s['Localidad'] || '').toLowerCase();
+                return cod.includes(query) || nom.includes(query) || loc.includes(query);
+            });
             renderLista(filtrados);
         }
 
@@ -174,17 +178,23 @@
             sitioActualIndex = index;
             const s = sitios[index];
             
-            document.getElementById('det-titulo').innerText = `${s['Código'] || ''} (${s['Nombre'] || ''})`;
-            document.getElementById('det-info-general').innerHTML = `
-                • <b>EMG:</b> ${s['EMG'] || 'N/D'}<br>
-                • <b>Localidad / Depto:</b> ${s['Localidad'] || 'N/D'} (${s['Departamento'] || 'N/D'})<br>
-                • <b>Dirección:</b> ${s['Dirección'] || 'N/D'}<br>
-                • <b>Estructura:</b> ${s['Tipo Estruc.'] || 'N/D'} (${s['Altura Estruc.'] || 'N/D'}m)<br>
-                • <b>Propietario Cota 0:</b> ${s['Propiet. Cota 0'] || 'N/D'}
-            `;
+            const codigo = s['Código'] || s['Codigo'] || 'S/C';
+            const nombre = s['Nombre'] || 'Sin Nombre';
+            document.getElementById('det-titulo').innerText = `${codigo} (${nombre})`;
+            
+            // Mostrar dinámicamente TODAS las columnas del Excel (excepto las internas nuestras)
+            let htmlInfo = '';
+            for (let key in s) {
+                if (key !== 'historial' && key !== 'fotos' && key !== 'contacto' && key !== 'Llaves de acceso' && key !== 'Litio' && key !== 'Zuncho' && key !== 'Detalle') {
+                    if (s[key] !== undefined && s[key] !== "" && s[key] !== null) {
+                        htmlInfo += `• <b>${key}:</b> ${s[key]}<br>`;
+                    }
+                }
+            }
+            document.getElementById('det-info-general').innerHTML = htmlInfo || 'Sin datos adicionales en el Excel.';
 
             document.getElementById('edit-contacto').value = s['contacto'] || '';
-            document.getElementById('edit-llaves').value = s['Llaves de acceso'] || '';
+            document.getElementById('edit-llaves').value = s['Llaves de acceso'] || s['Llaves'] || '';
             document.getElementById('edit-litio').value = s['Litio'] || '';
             document.getElementById('edit-zuncho').value = s['Zuncho'] || '';
             document.getElementById('edit-detalle').value = s['Detalle'] || '';
@@ -208,6 +218,20 @@
             alert('¡Cambios guardados con éxito!');
         }
 
+        function abrirGoogleMaps() {
+            const s = sitios[sitioActualIndex];
+            const lat = s['Latitud'] || s['Lat'];
+            const lon = s['Longitud'] || s['Lon'] || s['Long'];
+            if (lat && lon && lat !== 0 && lon !== 0) {
+                window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
+            } else {
+                const dir = s['Dirección'] || s['Direccion'] || '';
+                const loc = s['Localidad'] || '';
+                const query = encodeURIComponent(`${dir}, ${loc}, Argentina`);
+                window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+            }
+        }
+
         function renderFotos() {
             const container = document.getElementById('photo-grid-container');
             const fotos = sitios[sitioActualIndex]['fotos'] || [];
@@ -217,9 +241,9 @@
                 const slot = document.createElement('div');
                 slot.className = 'photo-slot';
                 if (fotos[i]) {
-                    slot.innerHTML = `<img src="${fotos[i]}"><button onclick="eliminarFoto(${i})" style="position:absolute; bottom:2px; right:2px; padding:2px 6px; font-size:10px; background:red; width:auto;">X</button>`;
+                    slot.innerHTML = `<img src="${fotos[i]}"><button onclick="eliminarFoto(${i})" style="position:absolute; bottom:2px; right:2px; padding:2px 6px; font-size:10px; background:red; width:auto; color:white;">X</button>`;
                 } else {
-                    slot.innerHTML = `<label style="font-size:12px; color:#0d6efd; cursor:pointer; text-align:center;">📷 Agregar<input type="file" accept="image/*" capture="environment" onchange="agregarFoto(event, ${i})" style="display:none;"></label>`;
+                    slot.innerHTML = `<label style="font-size:12px; color:#0d6efd; cursor:pointer; text-align:center;">📷 Foto ${i+1}<input type="file" accept="image/*" capture="environment" onchange="agregarFoto(event, ${i})" style="display:none;"></label>`;
                 }
                 container.appendChild(slot);
             }
@@ -278,20 +302,38 @@
 
         function enviarWhatsApp() {
             const s = sitios[sitioActualIndex];
-            const historial = s['historial'] || [];
-            let ultimoReporte = historial.length > 0 ? historial[0].texto : 'Sin visitas recientes';
+            const lat = s['Latitud'] || s['Lat'];
+            const lon = s['Longitud'] || s['Lon'] || s['Long'];
+            let mapsUrl = (lat && lon && lat !== 0 && lon !== 0) 
+                ? `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((s['Dirección'] || s['Direccion'] || '') + ', ' + (s['Localidad'] || ''))}`;
+
+            const codigo = s['Código'] || s['Codigo'] || 'N/D';
+            const nombre = s['Nombre'] || 'N/D';
+            const direccion = s['Dirección'] || s['Direccion'] || 'N/D';
+            const localidad = s['Localidad'] || 'N/D';
+            const contacto = s['contacto'] || '';
+            const propietario = s['Propiet. Cota 0'] || s['Propietario'] || s['Dueño'] || 'N/D';
+            const llaves = s['Llaves de acceso'] || s['Llaves'] || 'N/D';
 
             let texto = `*REPORTE DE SITIO CELULAR*%0A`;
             texto += `----------------------------------%0A`;
-            texto += `📌 *Código:* ${s['Código']}%0A`;
-            texto += `🏢 *Nombre:* ${s['Nombre']}%0A`;
-            texto += `📍 *Localidad:* ${s['Localidad'] || 'N/D'}%0A`;
-            texto += `📞 *Contacto:* ${s['contacto'] || 'Sin contacto'}%0A`;
-            texto += `🔑 *Llaves:* ${s['Llaves de acceso'] || 'N/D'}%0A`;
-            texto += `🔋 *Litio:* ${s['Litio'] || 'N/D'} | ⚡ *Zuncho:* ${s['Zuncho'] || 'N/D'}%0A`;
-            texto += `📝 *Detalle:* ${s['Detalle'] || 'N/D'}%0A`;
+            texto += `📌 *Código:* ${codigo}%0A`;
+            texto += `🏢 *Nombre:* ${nombre}%0A`;
+            texto += `📍 *Dirección:* ${direccion}%0A`;
+            texto += `🏙️ *Localidad:* ${localidad}%0A`;
+            if (contacto) {
+                texto += `📞 *Contacto:* ${contacto}%0A`;
+            }
+            texto += `🏗️ *Estructura Propietario:* ${propietario}%0A`;
+            texto += `🔑 *Llaves de Ingreso:* ${llaves}%0A`;
+            texto += `🗺️ *Google Maps:* ${mapsUrl}%0A`;
             texto += `----------------------------------%0A`;
-            texto += `🕒 *Última Visita:* ${ultimoReporte}`;
+            
+            const historial = s['historial'] || [];
+            if (historial.length > 0) {
+                texto += `📝 *Última Visita (${historial[0].fecha}):* ${historial[0].texto}`;
+            }
 
             window.open(`https://api.whatsapp.com/send?text=${texto}`, '_blank');
         }
@@ -313,13 +355,15 @@
                 "Código": codigo,
                 "EMG": document.getElementById('new-emg').value,
                 "Nombre": nombre,
-                "Latitud": 0, "Longitud": 0, "Departamento": "",
+                "Latitud": document.getElementById('new-lat').value || 0,
+                "Longitud": document.getElementById('new-lon').value || 0,
                 "Localidad": document.getElementById('new-localidad').value,
                 "Dirección": document.getElementById('new-direccion').value,
-                "Altura Estruc.": "", "Propiet. Cota 0": "", "Tipo Estruc.": "", "Clase Sitio": "N/D",
-                "Llaves de acceso": "", "contacto": document.getElementById('new-contacto').value,
-                "Litio": "", "Zuncho": "", "Detalle": "Creado en campo",
-                "historial": [], "fotos": []
+                "Propiet. Cota 0": "Creado por operador",
+                "Llaves de acceso": "", 
+                "contacto": document.getElementById('new-contacto').value,
+                "historial": [], 
+                "fotos": []
             };
 
             sitios.unshift(nuevo);
