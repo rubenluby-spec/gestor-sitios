@@ -25,8 +25,8 @@
         .section-box { background: #ffffff; border: 1px solid #e9ecef; padding: 16px; border-radius: 10px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
         .history-item { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 8px; font-size: 0.9rem; border-left: 4px solid #198754; }
         .excel-upload-box { background: #e8f4fd; border: 2px dashed #0d6efd; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
-        .photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
-        .photo-slot { aspect-ratio: 1; background: #e9ecef; border: 2px dashed #ced4da; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; cursor: pointer; }
+        .photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+        .photo-slot { border: 2px dashed #ccc; border-radius: 8px; height: 100px; display: flex; align-items: center; justify-content: center; position: relative; background: #f9f9f9; overflow: hidden; }
         .photo-slot img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
@@ -71,10 +71,9 @@
 
         <div class="section-box">
             <strong>📷 Fotos del Sitio (Máximo 4)</strong>
-            <div class="photo-grid" id="photo-grid">
+            <div class="photo-grid" id="photo-grid-container">
                 <!-- Se generan dinámicamente -->
             </div>
-            <input type="file" id="file-photo" accept="image/*" style="display:none;" onchange="procesarFoto(event)">
         </div>
 
         <div class="section-box">
@@ -102,7 +101,6 @@
     <script>
         let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v3')) || [];
         let sitioActualIndex = null;
-        let fotoSlotActivo = null;
 
         function guardarEnLocalStorage() {
             localStorage.setItem('mis_sitios_real_v3', JSON.stringify(sitios));
@@ -121,7 +119,7 @@
                 sitios = sheetData.map(s => ({
                     ...s,
                     "historial": s.historial || [],
-                    "fotos": s.fotos || ["", "", "", ""],
+                    "fotos": s.fotos || [],
                     "contacto": s.contacto || "",
                     "Llaves de acceso": s["Llaves de acceso"] || "",
                     "Litio": s.Litio || "",
@@ -176,8 +174,6 @@
             sitioActualIndex = index;
             const s = sitios[index];
             
-            if(!s.fotos) s.fotos = ["", "", "", ""];
-
             document.getElementById('det-titulo').innerText = `${s['Código'] || ''} (${s['Nombre'] || ''})`;
             document.getElementById('det-info-general').innerHTML = `
                 • <b>EMG:</b> ${s['EMG'] || 'N/D'}<br>
@@ -213,34 +209,134 @@
         }
 
         function renderFotos() {
-            const grid = document.getElementById('photo-grid');
-            const fotos = sitios[sitioActualIndex].fotos || ["", "", "", ""];
-            grid.innerHTML = '';
-            
-            for(let i=0; i<4; i++) {
+            const container = document.getElementById('photo-grid-container');
+            const fotos = sitios[sitioActualIndex]['fotos'] || [];
+            container.innerHTML = '';
+
+            for (let i = 0; i < 4; i++) {
                 const slot = document.createElement('div');
                 slot.className = 'photo-slot';
-                if(fotos[i]) {
-                    slot.innerHTML = `<img src="${fotos[i]}">`;
-                    slot.onclick = () => { if(confirm("¿Deseas eliminar esta foto?")) { fotos[i] = ""; guardarEnLocalStorage(); renderFotos(); } };
+                if (fotos[i]) {
+                    slot.innerHTML = `<img src="${fotos[i]}"><button onclick="eliminarFoto(${i})" style="position:absolute; bottom:2px; right:2px; padding:2px 6px; font-size:10px; background:red; width:auto;">X</button>`;
                 } else {
-                    slot.innerHTML = `<span style="font-size:1.5rem; color:#6c757d;">➕</span>`;
-                    slot.onclick = () => { fotoSlotActivo = i; document.getElementById('file-photo').click(); };
+                    slot.innerHTML = `<label style="font-size:12px; color:#0d6efd; cursor:pointer; text-align:center;">📷 Agregar<input type="file" accept="image/*" capture="environment" onchange="agregarFoto(event, ${i})" style="display:none;"></label>`;
                 }
-                grid.appendChild(slot);
+                container.appendChild(slot);
             }
         }
 
-        function procesarFoto(e) {
+        function agregarFoto(e, index) {
             const file = e.target.files[0];
-            if(!file || fotoSlotActivo === null) return;
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = function(event) {
-                // Comprimimos la imagen a base64 para que entre perfecto en el localStorage
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const MAX_WIDTH = 800;
-                    const MAX_HEIGHT = 800;
-                    let width = img.width;
+                if (!sitios[sitioActualIndex]['fotos']) sitios[sitioActualIndex]['fotos'] = [];
+                sitios[sitioActualIndex]['fotos'][index] = event.target.result;
+                guardarEnLocalStorage();
+                renderFotos();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function eliminarFoto(index) {
+            sitios[sitioActualIndex]['fotos'].splice(index, 1);
+            guardarEnLocalStorage();
+            renderFotos();
+        }
+
+        function agregarVisita() {
+            const texto = document.getElementById('nueva-visita').value.trim();
+            if (!texto) return;
+
+            const ahora = new Date();
+            const fechaStr = `${ahora.getDate()}/${ahora.getMonth()+1}/${ahora.getFullYear()} ${ahora.getHours()}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+
+            if (!sitios[sitioActualIndex]['historial']) {
+                sitios[sitioActualIndex]['historial'] = [];
+            }
+
+            sitios[sitioActualIndex]['historial'].unshift({ fecha: fechaStr, texto: texto });
+            document.getElementById('nueva-visita').value = '';
+            guardarEnLocalStorage();
+            renderHistorial();
+        }
+
+        function renderHistorial() {
+            const container = document.getElementById('historial-container');
+            const historial = sitios[sitioActualIndex]['historial'] || [];
+            if (historial.length === 0) {
+                container.innerHTML = '<p style="color:#888; font-size:0.85rem;">No hay visitas registradas.</p>';
+                return;
+            }
+            container.innerHTML = historial.map(h => `
+                <div class="history-item">
+                    <strong style="color:#198754;">${h.fecha}</strong><br>
+                    ${h.texto}
+                </div>
+            `).join('');
+        }
+
+        function enviarWhatsApp() {
+            const s = sitios[sitioActualIndex];
+            const historial = s['historial'] || [];
+            let ultimoReporte = historial.length > 0 ? historial[0].texto : 'Sin visitas recientes';
+
+            let texto = `*REPORTE DE SITIO CELULAR*%0A`;
+            texto += `----------------------------------%0A`;
+            texto += `📌 *Código:* ${s['Código']}%0A`;
+            texto += `🏢 *Nombre:* ${s['Nombre']}%0A`;
+            texto += `📍 *Localidad:* ${s['Localidad'] || 'N/D'}%0A`;
+            texto += `📞 *Contacto:* ${s['contacto'] || 'Sin contacto'}%0A`;
+            texto += `🔑 *Llaves:* ${s['Llaves de acceso'] || 'N/D'}%0A`;
+            texto += `🔋 *Litio:* ${s['Litio'] || 'N/D'} | ⚡ *Zuncho:* ${s['Zuncho'] || 'N/D'}%0A`;
+            texto += `📝 *Detalle:* ${s['Detalle'] || 'N/D'}%0A`;
+            texto += `----------------------------------%0A`;
+            texto += `🕒 *Última Visita:* ${ultimoReporte}`;
+
+            window.open(`https://api.whatsapp.com/send?text=${texto}`, '_blank');
+        }
+
+        function abrirModalNuevo() {
+            document.getElementById('view-list').classList.add('hidden');
+            document.getElementById('view-nuevo').classList.remove('hidden');
+        }
+
+        function guardarNuevoSitio() {
+            const codigo = document.getElementById('new-codigo').value.trim();
+            const nombre = document.getElementById('new-nombre').value.trim();
+            if (!codigo || !nombre) {
+                alert('El Código y el Nombre son obligatorios.');
+                return;
+            }
+
+            const nuevo = {
+                "Código": codigo,
+                "EMG": document.getElementById('new-emg').value,
+                "Nombre": nombre,
+                "Latitud": 0, "Longitud": 0, "Departamento": "",
+                "Localidad": document.getElementById('new-localidad').value,
+                "Dirección": document.getElementById('new-direccion').value,
+                "Altura Estruc.": "", "Propiet. Cota 0": "", "Tipo Estruc.": "", "Clase Sitio": "N/D",
+                "Llaves de acceso": "", "contacto": document.getElementById('new-contacto').value,
+                "Litio": "", "Zuncho": "", "Detalle": "Creado en campo",
+                "historial": [], "fotos": []
+            };
+
+            sitios.unshift(nuevo);
+            guardarEnLocalStorage();
+            volverLista();
+            alert('¡Sitio agregado correctamente!');
+        }
+
+        function volverLista() {
+            document.getElementById('view-detail').classList.add('hidden');
+            document.getElementById('view-nuevo').classList.add('hidden');
+            document.getElementById('view-list').classList.remove('hidden');
+            document.getElementById('search').value = '';
+            renderLista(sitios);
+        }
+
+        renderLista(sitios);
+    </script>
+</body>
+</html>
