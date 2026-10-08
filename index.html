@@ -1,325 +1,239 @@
-import 'package:flutter/material.dart';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Sitios Celulares</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f6f9; color: #333; }
+        header { background-color: #1a73e8; color: white; padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; }
+        .container { padding: 15px; max-width: 600px; margin: auto; }
+        input, textarea, select { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { background-color: #1a73e8; color: white; border: none; padding: 12px; border-radius: 5px; width: 100%; font-size: 1rem; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #1557b0; }
+        .card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; }
+        .card h3 { margin: 0 0 5px 0; color: #1a73e8; font-size: 1.1rem; }
+        .card p { margin: 2px 0; color: #666; font-size: 0.9rem; }
+        .hidden { display: none; }
+        .btn-back { background-color: #6c757d; margin-bottom: 15px; }
+        .btn-success { background-color: #28a745; margin-top: 10px; }
+        .section-box { background: #eef2f7; padding: 12px; border-radius: 8px; margin-bottom: 15px; }
+        .history-item { background: white; padding: 8px; border-radius: 5px; margin-top: 5px; font-size: 0.85rem; border-left: 4px solid #1a73e8; }
+    </style>
+</head>
+<body>
 
-void main() {
-  runApp(const MyApp());
-}
+    <header>Gestión de Sitios Celulares</header>
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+    <div class="container" id="view-list">
+        <input type="text" id="search" placeholder="🔍 Buscar por Código, Nombre o Localidad..." oninput="filtrarSitios()">
+        <button class="btn-success" onclick="abrirModalNuevo()" style="margin-bottom: 15px;">➕ Agregar Nuevo Sitio</button>
+        <div id="sitios-list"></div>
+    </div>
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Gestión de Sitios Celulares',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const SitiosHomePage(),
-    );
-  }
-}
+    <div class="container hidden" id="view-detail">
+        <button class="btn-back" onclick="volverLista()">⬅ Volver a la Lista</button>
+        <h2 id="det-titulo" style="color: #1a73e8; margin-top: 0;"></h2>
+        
+        <div class="section-box">
+            <strong>📌 Información General (Excel)</strong>
+            <p id="det-info-general"></p>
+        </div>
 
-class SitiosHomePage extends StatefulWidget {
-  const SitiosHomePage({super.key});
+        <div class="section-box">
+            <strong>✏️ Datos Operativos (Editables)</strong>
+            <label>Contacto:</label>
+            <input type="text" id="edit-contacto">
+            <label>Llaves de acceso:</label>
+            <input type="text" id="edit-llaves">
+            <div style="display: flex; gap: 10px;">
+                <div style="flex:1;"><label>Litio:</label><input type="text" id="edit-litio"></div>
+                <div style="flex:1;"><label>Zuncho:</label><input type="text" id="edit-zuncho"></div>
+            </div>
+            <label>Detalle:</label>
+            <textarea id="edit-detalle" rows="2"></textarea>
+            <button onclick="guardarCambiosSitio()">💾 Guardar Cambios</button>
+        </div>
 
-  @override
-  State<SitiosHomePage> createState() => _SitiosHomePageState();
-}
+        <div class="section-box">
+            <strong>📝 Historial de Visitas</strong>
+            <div id="historial-container"></div>
+            <textarea id="nueva-visita" placeholder="Escribe el reporte de la visita o trabajo realizado..." rows="2" style="margin-top: 10px;"></textarea>
+            <button class="btn-success" onclick="agregarVisita()">➕ Registrar Visita</button>
+        </div>
+    </div>
 
-class _SitiosHomePageState extends State<SitiosHomePage> {
-  final List<Map<String, dynamic>> baseDatosSitios = [
-    {
-      "Código": "A42-A045",
-      "EMG": "BMCFTM",
-      "Nombre": "Marcos Paz Fatima",
-      "Latitud": "-34.779400",
-      "Longitud": "-58.846600",
-      "Departamento": "Marcos Paz",
-      "Localidad": "Marcos Paz",
-      "Dirección": "Carlos Pellegrini y Pueyrredón",
-      "Altura Estruc.": "72.0",
-      "Propiet. Cota 0": "MVS/TASA (BA0165)",
-      "Tipo Estruc.": "Torre Autosoportada",
-      "Clase Sitio": "C",
-      "Llaves de acceso": "Candado principal sector sur",
-      "contacto": "Juan Pérez",
-      "Litio": "Sí",
-      "Zuncho": "No",
-      "Detalle": "Revisar baliza y tableros",
-      "_historialVisitas": <Map<String, String>>[],
-      "_fotosSitio": <String>[]
-    }
-  ];
+    <!-- Modal simple para Nuevo Sitio -->
+    <div class="container hidden" id="view-nuevo">
+        <button class="btn-back" onclick="volverLista()">⬅ Cancelar</button>
+        <h2>Agregar Nuevo Sitio</h2>
+        <label>Código *:</label><input type="text" id="new-codigo">
+        <label>Nombre *:</label><input type="text" id="new-nombre">
+        <label>EMG:</label><input type="text" id="new-emg">
+        <label>Localidad:</label><input type="text" id="new-localidad">
+        <label>Dirección:</label><input type="text" id="new-direccion">
+        <label>Contacto:</label><input type="text" id="new-contacto">
+        <button class="btn-success" onclick="guardarNuevoSitio()">Guardar Nuevo Sitio</button>
+    </div>
 
-  List<Map<String, dynamic>> sitiosFiltrados = [];
-  TextEditingController buscadorController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    sitiosFiltrados = baseDatosSitios;
-  }
-
-  void _filtrar(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        sitiosFiltrados = baseDatosSitios;
-      } else {
-        sitiosFiltrados = baseDatosSitios.where((sitio) {
-          final codigo = sitio['Código'].toString().toLowerCase();
-          final nombre = sitio['Nombre'].toString().toLowerCase();
-          final localidad = sitio['Localidad'].toString().toLowerCase();
-          final q = query.toLowerCase();
-          return codigo.contains(q) || nombre.contains(q) || localidad.contains(q);
-        }).toList();
-      }
-    });
-  }
-
-  void _abrirDetalles(Map<String, dynamic> sitio) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DetalleSitioPage(
-          sitio: sitio,
-          onUpdate: () => setState(() {}),
-        ),
-      ),
-    );
-  }
-
-  // Función para abrir el formulario de Nuevo Sitio
-  void _crearNuevoSitio() {
-    showDialog(
-      context: context,
-      builder: (context) => FormularioNuevoSitio(
-        onGuardar: (nuevoSitio) {
-          setState(() {
-            baseDatosSitios.insert(0, nuevoSitio);
-            _filtrar(buscadorController.text);
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('¡Sitio agregado con éxito!')),
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Gestión de Sitios (${baseDatosSitios.length})'),
-        backgroundColor: Colors.blue[800],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: buscadorController,
-              onChanged: _filtrar,
-              decoration: InputDecoration(
-                labelText: 'Buscar por Código, Nombre o Localidad',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-            const SizedBox(height: 15),
-            Expanded(
-              child: ListView.builder(
-                itemCount: sitiosFiltrados.length,
-                itemBuilder: (context, index) {
-                  final sitio = sitiosFiltrados[index];
-                  return Card(
-                    elevation: 3,
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    child: ListTile(
-                      title: Text('${sitio['Código']} - ${sitio['Nombre']}',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('Localidad: ${sitio['Localidad']} | EMG: ${sitio['EMG']}'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () => _abrirDetalles(sitio),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _crearNuevoSitio,
-        backgroundColor: Colors.green,
-        icon: const Icon(Icons.add_location_alt),
-        label: const Text('Nuevo Sitio'),
-      ),
-    );
-  }
-}
-
-// Diálogo / Pantalla para ingresar los datos del nuevo sitio
-class FormularioNuevoSitio extends StatefulWidget {
-  final Function(Map<String, dynamic>) onGuardar;
-  const FormularioNuevoSitio({super.key, required this.onGuardar});
-
-  @override
-  State<FormularioNuevoSitio> createState() => _FormularioNuevoSitioState();
-}
-
-class _FormularioNuevoSitioState extends State<FormularioNuevoSitio> {
-  final _codigoCtrl = TextEditingController();
-  final _nombreCtrl = TextEditingController();
-  final _emgCtrl = TextEditingController();
-  final _localidadCtrl = TextEditingController();
-  final _direccionCtrl = TextEditingController();
-  final _contactoCtrl = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Agregar Nuevo Sitio'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: _codigoCtrl, decoration: const InputDecoration(labelText: 'Código *')),
-            TextField(controller: _nombreCtrl, decoration: const InputDecoration(labelText: 'Nombre *')),
-            TextField(controller: _emgCtrl, decoration: const InputDecoration(labelText: 'EMG')),
-            TextField(controller: _localidadCtrl, decoration: const InputDecoration(labelText: 'Localidad')),
-            TextField(controller: _direccionCtrl, decoration: const InputDecoration(labelText: 'Dirección')),
-            TextField(controller: _contactoCtrl, decoration: const InputDecoration(labelText: 'Contacto')),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-          onPressed: () {
-            if (_codigoCtrl.text.isEmpty || _nombreCtrl.text.isEmpty) {
-              return;
+    <script>
+        // Base de datos inicial (puedes adaptarla o dejarla vacía para cargar tus sitios)
+        let sitios = JSON.parse(localStorage.getItem('mis_sitios')) || [
+            {
+                "Código": "A42-A045", "EMG": "BMCFTM", "Nombre": "Marcos Paz Fatima",
+                "Latitud": "-34.779400", "Longitud": "-58.846600", "Departamento": "Marcos Paz",
+                "Localidad": "Marcos Paz", "Dirección": "Carlos Pellegrini y Pueyrredón",
+                "Altura Estruc.": "72.0", "Propiet. Cota 0": "MVS/TASA (BA0165)",
+                "Tipo Estruc.": "Torre Autosoportada", "Clase Sitio": "C",
+                "Llaves de acceso": "Candado sector sur", "contacto": "Juan Pérez",
+                "Litio": "Sí", "Zuncho": "No", "Detalle": "Revisar baliza",
+                "historial": [], "fotos": []
             }
-            widget.onGuardar({
-              "Código": _codigoCtrl.text,
-              "EMG": _emgCtrl.text,
-              "Nombre": _nombreCtrl.text,
-              "Latitud": "0.0",
-              "Longitud": "0.0",
-              "Departamento": "",
-              "Localidad": _localidadCtrl.text,
-              "Dirección": _direccionCtrl.text,
-              "Altura Estruc.": "",
-              "Propiet. Cota 0": "",
-              "Tipo Estruc.": "",
-              "Clase Sitio": "N/D",
-              "Llaves de acceso": "",
-              "contacto": _contactoCtrl.text,
-              "Litio": "",
-              "Zuncho": "",
-              "Detalle": "Sitio creado en campo",
-              "_historialVisitas": <Map<String, String>>[],
-              "_fotosSitio": <String>[]
+        ];
+
+        let sitioActualIndex = null;
+
+        function guardarEnLocalStorage() {
+            localStorage.setItem('mis_sitios', JSON.stringify(sitios));
+        }
+
+        function renderLista(arraySitios) {
+            const listDiv = document.getElementById('sitios-list');
+            listDiv.innerHTML = '';
+            arraySitios.forEach((s, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => abrirDetalle(index);
+                card.innerHTML = `
+                    <h3>${s['Código']} - ${s['Nombre']}</h3>
+                    <p><strong>Localidad:</strong> ${s['Localidad'] || 'N/D'} | <strong>EMG:</strong> ${s['EMG'] || 'N/D'}</p>
+                    <p><strong>Contacto:</strong> ${s['contacto'] || 'Sin contacto'}</p>
+                `;
+                listDiv.appendChild(card);
             });
-            Navigator.pop(context);
-          },
-          child: const Text('Guardar', style: TextStyle(color: Colors.white)),
-        ),
-      ],
-    );
-  }
-}
+        }
 
-// Pantalla de Detalle (Igual a la anterior para editar campos, visitas y fotos)
-class DetalleSitioPage extends StatefulWidget {
-  final Map<String, dynamic> sitio;
-  final VoidCallback onUpdate;
-  const DetalleSitioPage({super.key, required this.sitio, required this.onUpdate});
+        function filtrarSitios() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const filtrados = sitios.filter(s => 
+                (s['Código'] && s['Código'].toLowerCase().includes(query)) ||
+                (s['Nombre'] && s['Nombre'].toLowerCase().includes(query)) ||
+                (s['Localidad'] && s['Localidad'].toLowerCase().includes(query))
+            );
+            renderLista(filtrados);
+        }
 
-  @override
-  State<DetalleSitioPage> createState() => _DetalleSitioPageState();
-}
+        function abrirDetalle(index) {
+            sitioActualIndex = index;
+            const s = sitios[index];
+            
+            document.getElementById('det-titulo').innerText = `${s['Código']} (${s['Nombre']})`;
+            document.getElementById('det-info-general').innerHTML = `
+                • EMG: ${s['EMG']}<br>
+                • Localidad / Depto: ${s['Localidad']} (${s['Departamento']})<br>
+                • Dirección: ${s['Dirección'] || 'N/D'}<br>
+                • Estructura: ${s['Tipo Estruc.']} (${s['Altura Estruc.']}m)<br>
+                • Propietario Cota 0: ${s['Propiet. Cota 0'] || 'N/D'}
+            `;
 
-class _DetalleSitioPageState extends State<DetalleSitioPage> {
-  late TextEditingController llavesController;
-  late TextEditingController contactoController;
-  late TextEditingController litioController;
-  late TextEditingController zunchoController;
-  late TextEditingController detalleController;
-  late TextEditingController nuevaVisitaController;
+            document.getElementById('edit-contacto').value = s['contacto'] || '';
+            document.getElementById('edit-llaves').value = s['Llaves de acceso'] || '';
+            document.getElementById('edit-litio').value = s['Litio'] || '';
+            document.getElementById('edit-zuncho').value = s['Zuncho'] || '';
+            document.getElementById('edit-detalle').value = s['Detalle'] || '';
 
-  @override
-  void initState() {
-    super.initState();
-    llavesController = TextEditingController(text: widget.sitio['Llaves de acceso'] ?? '');
-    contactoController = TextEditingController(text: widget.sitio['contacto'] ?? '');
-    litioController = TextEditingController(text: widget.sitio['Litio'] ?? '');
-    zunchoController = TextEditingController(text: widget.sitio['Zuncho'] ?? '');
-    detalleController = TextEditingController(text: widget.sitio['Detalle'] ?? '');
-    nuevaVisitaController = TextEditingController();
-  }
+            renderHistorial();
 
-  void _guardarCambios() {
-    widget.sitio['Llaves de acceso'] = llavesController.text;
-    widget.sitio['contacto'] = contactoController.text;
-    widget.sitio['Litio'] = litioController.text;
-    widget.sitio['Zuncho'] = zunchoController.text;
-    widget.sitio['Detalle'] = detalleController.text;
-    widget.onUpdate();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Datos guardados!')));
-  }
+            document.getElementById('view-list').classList.add('hidden');
+            document.getElementById('view-detail').classList.remove('hidden');
+        }
 
-  void _agregarVisita() {
-    if (nuevaVisitaController.text.trim().isEmpty) return;
-    final ahora = DateTime.now();
-    final fechaStr = "${ahora.day}/${ahora.month}/${ahora.year} ${ahora.hour}:${ahora.minute.toString().padLeft(2, '0')}";
-    setState(() {
-      widget.sitio['_historialVisitas'].insert(0, {"fecha": fechaStr, "texto": nuevaVisitaController.text.trim()});
-      nuevaVisitaController.clear();
-    });
-    widget.onUpdate();
-  }
+        function guardarCambiosSitio() {
+            if (sitioActualIndex === null) return;
+            sitios[sitioActualIndex]['contacto'] = document.getElementById('edit-contacto').value;
+            sitios[sitioActualIndex]['Llaves de acceso'] = document.getElementById('edit-llaves').value;
+            sitios[sitioActualIndex]['Litio'] = document.getElementById('edit-litio').value;
+            sitios[sitioActualIndex]['Zuncho'] = document.getElementById('edit-zuncho').value;
+            sitios[sitioActualIndex]['Detalle'] = document.getElementById('edit-detalle').value;
+            
+            guardarEnLocalStorage();
+            alert('¡Cambios guardados con éxito!');
+        }
 
-  @override
-  Widget build(BuildContext context) {
-    List historial = widget.sitio['_historialVisitas'];
-    return Scaffold(
-      appBar: AppBar(title: Text('${widget.sitio['Código']} (${widget.sitio['Nombre']})'), backgroundColor: Colors.blue[800]),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(controller: contactoController, decoration: const InputDecoration(labelText: 'Contacto', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: llavesController, decoration: const InputDecoration(labelText: 'Llaves de acceso', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: detalleController, maxLines: 2, decoration: const InputDecoration(labelText: 'Detalle', border: OutlineInputBorder())),
-            const SizedBox(height: 15),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(8)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('📝 Historial de Visitas (${historial.length})', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                  const SizedBox(height: 8),
-                  ...historial.map((v) => Card(child: Padding(padding: const EdgeInsets.all(8.0), child: Text('${v['fecha']}: ${v['texto']}')))),
-                  const SizedBox(height: 10),
-                  TextField(controller: nuevaVisitaController, decoration: const InputDecoration(labelText: 'Nueva visita', border: OutlineInputBorder())),
-                  const SizedBox(height: 8),
-                  ElevatedButton(onPressed: _agregarVisita, child: const Text('Guardar Visita')),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: _guardarCambios, child: const Text('💾 Guardar Cambios')),
-          ],
-        ),
-      ),
-    );
-  }
-}
+        function agregarVisita() {
+            const texto = document.getElementById('nueva-visita').value.trim();
+            if (!texto) return;
+
+            const ahora = new Date();
+            const fechaStr = `${ahora.getDate()}/${ahora.getMonth()+1}/${ahora.getFullYear()} ${ahora.getHours()}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+
+            if (!sitios[sitioActualIndex]['historial']) {
+                sitios[sitioActualIndex]['historial'] = [];
+            }
+
+            sitios[sitioActualIndex]['historial'].unshift({ fecha: fechaStr, texto: texto });
+            document.getElementById('nueva-visita').value = '';
+            guardarEnLocalStorage();
+            renderHistorial();
+        }
+
+        function renderHistorial() {
+            const container = document.getElementById('historial-container');
+            const historial = sitios[sitioActualIndex]['historial'] || [];
+            if (historial.length === 0) {
+                container.innerHTML = '<p style="color:#888; font-size:0.85rem;">No hay visitas registradas.</p>';
+                return;
+            }
+            container.innerHTML = historial.map(h => `
+                <div class="history-item">
+                    <strong style="color:#1a73e8;">${h.fecha}</strong><br>
+                    ${h.texto}
+                </div>
+            `).join('');
+        }
+
+        function abrirModalNuevo() {
+            document.getElementById('view-list').classList.add('hidden');
+            document.getElementById('view-nuevo').classList.remove('hidden');
+        }
+
+        function guardarNuevoSitio() {
+            const codigo = document.getElementById('new-codigo').value.trim();
+            const nombre = document.getElementById('new-nombre').value.trim();
+            if (!codigo || !nombre) {
+                alert('El Código y el Nombre son obligatorios.');
+                return;
+            }
+
+            const nuevo = {
+                "Código": codigo,
+                "EMG": document.getElementById('new-emg').value,
+                "Nombre": nombre,
+                "Latitud": "0", "Longitud": "0", "Departamento": "",
+                "Localidad": document.getElementById('new-localidad').value,
+                "Dirección": document.getElementById('new-direccion').value,
+                "Altura Estruc.": "", "Propiet. Cota 0": "", "Tipo Estruc.": "", "Clase Sitio": "N/D",
+                "Llaves de acceso": "", "contacto": document.getElementById('new-contacto').value,
+                "Litio": "", "Zuncho": "", "Detalle": "Creado en campo",
+                "historial": [], "fotos": []
+            };
+
+            sitios.unshift(nuevo);
+            guardarEnLocalStorage();
+            volverLista();
+            alert('¡Sitio agregado correctamente!');
+        }
+
+        function volverLista() {
+            document.getElementById('view-detail').classList.add('hidden');
+            document.getElementById('view-nuevo').classList.add('hidden');
+            document.getElementById('view-list').classList.remove('hidden');
+            document.getElementById('search').value = '';
+            renderLista(sitios);
+        }
+
+        // Inicializar lista al cargar
+        renderLista(sitios);
+    </script>
+</body>
+</html>
