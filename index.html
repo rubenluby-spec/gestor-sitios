@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Sitios Celulares</title>
-    <!-- Librería para leer Excel directo en el navegador de forma offline -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background-color: #f8f9fa; color: #333; }
@@ -102,11 +101,11 @@
     </div>
 
     <script>
-        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v8')) || [];
+        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v9')) || [];
         let codigoSeleccionado = null;
 
         function guardarEnLocalStorage() {
-            localStorage.setItem('mis_sitios_real_v8', JSON.stringify(sitios));
+            localStorage.setItem('mis_sitios_real_v9', JSON.stringify(sitios));
         }
 
         function cargarExcel(e) {
@@ -170,7 +169,7 @@
 
                 const card = document.createElement('div');
                 card.className = 'card';
-                // Pasamos explícitamente el código como texto seguro
+                // Usamos una función anónima segura pasando exactamente el código limpio
                 card.onclick = function() { abrirDetalle(codigo); };
                 card.innerHTML = `
                     <h3>${codigo} - ${nombre}</h3>
@@ -189,7 +188,7 @@
         }
 
         function filtrarSitios() {
-            const query = document.getElementById('search').value.toLowerCase();
+            const query = document.getElementById('search').value.toLowerCase().trim();
             const filtrados = sitios.filter(s => {
                 const cod = String(s['Código'] || s['Codigo'] || '').toLowerCase();
                 const nom = String(s['Nombre'] || '').toLowerCase();
@@ -204,12 +203,15 @@
         }
 
         function abrirDetalle(codigo) {
-            codigoSeleccionado = codigo;
+            codigoSeleccionado = String(codigo).trim();
             const s = obtenerSitioActual();
-            if (!s) return;
+            if (!s) {
+                alert("No se encontró el sitio seleccionado.");
+                return;
+            }
             
             const nombre = s['Nombre'] || 'Sin Nombre';
-            document.getElementById('det-titulo').innerText = `${codigo} (${nombre})`;
+            document.getElementById('det-titulo').innerText = `${codigoSeleccionado} (${nombre})`;
             
             let htmlInfo = '';
             for (let key in s) {
