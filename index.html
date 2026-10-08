@@ -11,7 +11,7 @@
         header { background-color: #0d6efd; color: white; padding: 16px; text-align: center; font-size: 1.25rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .container { padding: 16px; max-width: 600px; margin: auto; }
         input[type="text"], textarea { width: 100%; padding: 12px; margin-top: 6px; margin-bottom: 16px; border: 1px solid #ced4da; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
-        button { background-color: #0d6efd; color: white; border: none; padding: 12px 16px; border-radius: 8px; width: 100%; font-size: 1rem; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button { background-color: #0d6efd; color: white; border: none; padding: 12px 16px; border-radius: 8px; width: 100%; font-size: 1rem; cursor: pointer; font-weight: bold; transition: background 0.2s; margin-top: 5px; }
         button:hover { background-color: #0b5ed7; }
         .card { background: white; padding: 16px; margin-bottom: 12px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); cursor: pointer; border-left: 5px solid #0d6efd; }
         .card h3 { margin: 0 0 6px 0; color: #0d6efd; font-size: 1.1rem; }
@@ -20,9 +20,14 @@
         .btn-back { background-color: #6c757d; margin-bottom: 16px; }
         .btn-success { background-color: #198754; }
         .btn-success:hover { background-color: #157347; }
+        .btn-whatsapp { background-color: #25d366; }
+        .btn-whatsapp:hover { background-color: #1ebe5d; }
         .section-box { background: #ffffff; border: 1px solid #e9ecef; padding: 16px; border-radius: 10px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
         .history-item { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 8px; font-size: 0.9rem; border-left: 4px solid #198754; }
         .excel-upload-box { background: #e8f4fd; border: 2px dashed #0d6efd; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
+        .photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+        .photo-slot { aspect-ratio: 1; background: #e9ecef; border: 2px dashed #ced4da; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; cursor: pointer; }
+        .photo-slot img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body>
@@ -30,7 +35,6 @@
     <header>📡 Gestión de Sitios Celulares</header>
 
     <div class="container" id="view-list">
-        <!-- Caja para cargar el Excel la primera vez o actualizarlo -->
         <div class="excel-upload-box">
             <p style="margin: 0 0 8px 0; font-size: 0.9rem; color: #0d6efd; font-weight: bold;">📁 Cargar o Actualizar Base de Excel</p>
             <input type="file" id="excelFile" accept=".xlsx, .xls" onchange="cargarExcel(event)" style="margin-bottom:0;">
@@ -66,11 +70,21 @@
         </div>
 
         <div class="section-box">
+            <strong>📷 Fotos del Sitio (Máximo 4)</strong>
+            <div class="photo-grid" id="photo-grid">
+                <!-- Se generan dinámicamente -->
+            </div>
+            <input type="file" id="file-photo" accept="image/*" style="display:none;" onchange="procesarFoto(event)">
+        </div>
+
+        <div class="section-box">
             <strong>📝 Historial de Visitas</strong>
             <div id="historial-container"></div>
             <textarea id="nueva-visita" placeholder="Escribe el reporte de la visita o trabajo realizado..." rows="2" style="margin-top: 10px;"></textarea>
             <button class="btn-success" onclick="agregarVisita()">➕ Registrar Visita</button>
         </div>
+
+        <button class="btn-whatsapp" onclick="enviarWhatsApp()">💬 Enviar Reporte por WhatsApp</button>
     </div>
 
     <div class="container hidden" id="view-nuevo">
@@ -86,14 +100,14 @@
     </div>
 
     <script>
-        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real')) || [];
+        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v3')) || [];
         let sitioActualIndex = null;
+        let fotoSlotActivo = null;
 
         function guardarEnLocalStorage() {
-            localStorage.setItem('mis_sitios_real', JSON.stringify(sitios));
+            localStorage.setItem('mis_sitios_real_v3', JSON.stringify(sitios));
         }
 
-        // Función para leer el Excel directamente en el celular
         function cargarExcel(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -107,6 +121,7 @@
                 sitios = sheetData.map(s => ({
                     ...s,
                     "historial": s.historial || [],
+                    "fotos": s.fotos || ["", "", "", ""],
                     "contacto": s.contacto || "",
                     "Llaves de acceso": s["Llaves de acceso"] || "",
                     "Litio": s.Litio || "",
@@ -161,6 +176,8 @@
             sitioActualIndex = index;
             const s = sitios[index];
             
+            if(!s.fotos) s.fotos = ["", "", "", ""];
+
             document.getElementById('det-titulo').innerText = `${s['Código'] || ''} (${s['Nombre'] || ''})`;
             document.getElementById('det-info-general').innerHTML = `
                 • <b>EMG:</b> ${s['EMG'] || 'N/D'}<br>
@@ -177,6 +194,7 @@
             document.getElementById('edit-detalle').value = s['Detalle'] || '';
 
             renderHistorial();
+            renderFotos();
 
             document.getElementById('view-list').classList.add('hidden');
             document.getElementById('view-detail').classList.remove('hidden');
@@ -194,80 +212,35 @@
             alert('¡Cambios guardados con éxito!');
         }
 
-        function agregarVisita() {
-            const texto = document.getElementById('nueva-visita').value.trim();
-            if (!texto) return;
-
-            const ahora = new Date();
-            const fechaStr = `${ahora.getDate()}/${ahora.getMonth()+1}/${ahora.getFullYear()} ${ahora.getHours()}:${String(ahora.getMinutes()).padStart(2, '0')}`;
-
-            if (!sitios[sitioActualIndex]['historial']) {
-                sitios[sitioActualIndex]['historial'] = [];
+        function renderFotos() {
+            const grid = document.getElementById('photo-grid');
+            const fotos = sitios[sitioActualIndex].fotos || ["", "", "", ""];
+            grid.innerHTML = '';
+            
+            for(let i=0; i<4; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'photo-slot';
+                if(fotos[i]) {
+                    slot.innerHTML = `<img src="${fotos[i]}">`;
+                    slot.onclick = () => { if(confirm("¿Deseas eliminar esta foto?")) { fotos[i] = ""; guardarEnLocalStorage(); renderFotos(); } };
+                } else {
+                    slot.innerHTML = `<span style="font-size:1.5rem; color:#6c757d;">➕</span>`;
+                    slot.onclick = () => { fotoSlotActivo = i; document.getElementById('file-photo').click(); };
+                }
+                grid.appendChild(slot);
             }
-
-            sitios[sitioActualIndex]['historial'].unshift({ fecha: fechaStr, texto: texto });
-            document.getElementById('nueva-visita').value = '';
-            guardarEnLocalStorage();
-            renderHistorial();
         }
 
-    function renderHistorial() {
-            const container = document.getElementById('historial-container');
-            const historial = sitios[sitioActualIndex]['historial'] || [];
-            if (historial.length === 0) {
-                container.innerHTML = '<p style="color:#888; font-size:0.85rem;">No hay visitas registradas.</p>';
-                return;
-            }
-            container.innerHTML = historial.map(h => `
-                <div class="history-item">
-                    <strong style="color:#198754;">${h.fecha}</strong><br>
-                    ${h.texto}
-                </div>
-            `).join('');
-        }
-
-        function abrirModalNuevo() {
-            document.getElementById('view-list').classList.add('hidden');
-            document.getElementById('view-nuevo').classList.remove('hidden');
-        }
-
-        function guardarNuevoSitio() {
-            const codigo = document.getElementById('new-codigo').value.trim();
-            const nombre = document.getElementById('new-nombre').value.trim();
-            if (!codigo || !nombre) {
-                alert('El Código y el Nombre son obligatorios.');
-                return;
-            }
-
-            const nuevo = {
-                "Código": codigo,
-                "EMG": document.getElementById('new-emg').value,
-                "Nombre": nombre,
-                "Latitud": 0, "Longitud": 0, "Departamento": "",
-                "Localidad": document.getElementById('new-localidad').value,
-                "Dirección": document.getElementById('new-direccion').value,
-                "Altura Estruc.": "", "Propiet. Cota 0": "", "Tipo Estruc.": "", "Clase Sitio": "N/D",
-                "Llaves de acceso": "", "contacto": document.getElementById('new-contacto').value,
-                "Litio": "", "Zuncho": "", "Detalle": "Creado en campo",
-                "historial": []
-            };
-
-            sitios.unshift(nuevo);
-            guardarEnLocalStorage();
-            volverLista();
-            alert('¡Sitio agregado correctamente!');
-        }
-
-        function volverLista() {
-            document.getElementById('view-detail').classList.add('hidden');
-            document.getElementById('view-nuevo').classList.add('hidden');
-            document.getElementById('view-list').classList.remove('hidden');
-            document.getElementById('search').value = '';
-            renderLista(sitios);
-        }
-
-        // Cargar lista inicial si ya estaba guardada
-        renderLista(sitios);
-    </script>
-</body>
-</html>
+        function procesarFoto(e) {
+            const file = e.target.files[0];
+            if(!file || fotoSlotActivo === null) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                // Comprimimos la imagen a base64 para que entre perfecto en el localStorage
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
