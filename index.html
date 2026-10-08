@@ -1,0 +1,325 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Gestión de Sitios Celulares',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const SitiosHomePage(),
+    );
+  }
+}
+
+class SitiosHomePage extends StatefulWidget {
+  const SitiosHomePage({super.key});
+
+  @override
+  State<SitiosHomePage> createState() => _SitiosHomePageState();
+}
+
+class _SitiosHomePageState extends State<SitiosHomePage> {
+  final List<Map<String, dynamic>> baseDatosSitios = [
+    {
+      "Código": "A42-A045",
+      "EMG": "BMCFTM",
+      "Nombre": "Marcos Paz Fatima",
+      "Latitud": "-34.779400",
+      "Longitud": "-58.846600",
+      "Departamento": "Marcos Paz",
+      "Localidad": "Marcos Paz",
+      "Dirección": "Carlos Pellegrini y Pueyrredón",
+      "Altura Estruc.": "72.0",
+      "Propiet. Cota 0": "MVS/TASA (BA0165)",
+      "Tipo Estruc.": "Torre Autosoportada",
+      "Clase Sitio": "C",
+      "Llaves de acceso": "Candado principal sector sur",
+      "contacto": "Juan Pérez",
+      "Litio": "Sí",
+      "Zuncho": "No",
+      "Detalle": "Revisar baliza y tableros",
+      "_historialVisitas": <Map<String, String>>[],
+      "_fotosSitio": <String>[]
+    }
+  ];
+
+  List<Map<String, dynamic>> sitiosFiltrados = [];
+  TextEditingController buscadorController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    sitiosFiltrados = baseDatosSitios;
+  }
+
+  void _filtrar(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        sitiosFiltrados = baseDatosSitios;
+      } else {
+        sitiosFiltrados = baseDatosSitios.where((sitio) {
+          final codigo = sitio['Código'].toString().toLowerCase();
+          final nombre = sitio['Nombre'].toString().toLowerCase();
+          final localidad = sitio['Localidad'].toString().toLowerCase();
+          final q = query.toLowerCase();
+          return codigo.contains(q) || nombre.contains(q) || localidad.contains(q);
+        }).toList();
+      }
+    });
+  }
+
+  void _abrirDetalles(Map<String, dynamic> sitio) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DetalleSitioPage(
+          sitio: sitio,
+          onUpdate: () => setState(() {}),
+        ),
+      ),
+    );
+  }
+
+  // Función para abrir el formulario de Nuevo Sitio
+  void _crearNuevoSitio() {
+    showDialog(
+      context: context,
+      builder: (context) => FormularioNuevoSitio(
+        onGuardar: (nuevoSitio) {
+          setState(() {
+            baseDatosSitios.insert(0, nuevoSitio);
+            _filtrar(buscadorController.text);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('¡Sitio agregado con éxito!')),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Gestión de Sitios (${baseDatosSitios.length})'),
+        backgroundColor: Colors.blue[800],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: buscadorController,
+              onChanged: _filtrar,
+              decoration: InputDecoration(
+                labelText: 'Buscar por Código, Nombre o Localidad',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 15),
+            Expanded(
+              child: ListView.builder(
+                itemCount: sitiosFiltrados.length,
+                itemBuilder: (context, index) {
+                  final sitio = sitiosFiltrados[index];
+                  return Card(
+                    elevation: 3,
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    child: ListTile(
+                      title: Text('${sitio['Código']} - ${sitio['Nombre']}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text('Localidad: ${sitio['Localidad']} | EMG: ${sitio['EMG']}'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () => _abrirDetalles(sitio),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _crearNuevoSitio,
+        backgroundColor: Colors.green,
+        icon: const Icon(Icons.add_location_alt),
+        label: const Text('Nuevo Sitio'),
+      ),
+    );
+  }
+}
+
+// Diálogo / Pantalla para ingresar los datos del nuevo sitio
+class FormularioNuevoSitio extends StatefulWidget {
+  final Function(Map<String, dynamic>) onGuardar;
+  const FormularioNuevoSitio({super.key, required this.onGuardar});
+
+  @override
+  State<FormularioNuevoSitio> createState() => _FormularioNuevoSitioState();
+}
+
+class _FormularioNuevoSitioState extends State<FormularioNuevoSitio> {
+  final _codigoCtrl = TextEditingController();
+  final _nombreCtrl = TextEditingController();
+  final _emgCtrl = TextEditingController();
+  final _localidadCtrl = TextEditingController();
+  final _direccionCtrl = TextEditingController();
+  final _contactoCtrl = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Agregar Nuevo Sitio'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: _codigoCtrl, decoration: const InputDecoration(labelText: 'Código *')),
+            TextField(controller: _nombreCtrl, decoration: const InputDecoration(labelText: 'Nombre *')),
+            TextField(controller: _emgCtrl, decoration: const InputDecoration(labelText: 'EMG')),
+            TextField(controller: _localidadCtrl, decoration: const InputDecoration(labelText: 'Localidad')),
+            TextField(controller: _direccionCtrl, decoration: const InputDecoration(labelText: 'Dirección')),
+            TextField(controller: _contactoCtrl, decoration: const InputDecoration(labelText: 'Contacto')),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+          onPressed: () {
+            if (_codigoCtrl.text.isEmpty || _nombreCtrl.text.isEmpty) {
+              return;
+            }
+            widget.onGuardar({
+              "Código": _codigoCtrl.text,
+              "EMG": _emgCtrl.text,
+              "Nombre": _nombreCtrl.text,
+              "Latitud": "0.0",
+              "Longitud": "0.0",
+              "Departamento": "",
+              "Localidad": _localidadCtrl.text,
+              "Dirección": _direccionCtrl.text,
+              "Altura Estruc.": "",
+              "Propiet. Cota 0": "",
+              "Tipo Estruc.": "",
+              "Clase Sitio": "N/D",
+              "Llaves de acceso": "",
+              "contacto": _contactoCtrl.text,
+              "Litio": "",
+              "Zuncho": "",
+              "Detalle": "Sitio creado en campo",
+              "_historialVisitas": <Map<String, String>>[],
+              "_fotosSitio": <String>[]
+            });
+            Navigator.pop(context);
+          },
+          child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    );
+  }
+}
+
+// Pantalla de Detalle (Igual a la anterior para editar campos, visitas y fotos)
+class DetalleSitioPage extends StatefulWidget {
+  final Map<String, dynamic> sitio;
+  final VoidCallback onUpdate;
+  const DetalleSitioPage({super.key, required this.sitio, required this.onUpdate});
+
+  @override
+  State<DetalleSitioPage> createState() => _DetalleSitioPageState();
+}
+
+class _DetalleSitioPageState extends State<DetalleSitioPage> {
+  late TextEditingController llavesController;
+  late TextEditingController contactoController;
+  late TextEditingController litioController;
+  late TextEditingController zunchoController;
+  late TextEditingController detalleController;
+  late TextEditingController nuevaVisitaController;
+
+  @override
+  void initState() {
+    super.initState();
+    llavesController = TextEditingController(text: widget.sitio['Llaves de acceso'] ?? '');
+    contactoController = TextEditingController(text: widget.sitio['contacto'] ?? '');
+    litioController = TextEditingController(text: widget.sitio['Litio'] ?? '');
+    zunchoController = TextEditingController(text: widget.sitio['Zuncho'] ?? '');
+    detalleController = TextEditingController(text: widget.sitio['Detalle'] ?? '');
+    nuevaVisitaController = TextEditingController();
+  }
+
+  void _guardarCambios() {
+    widget.sitio['Llaves de acceso'] = llavesController.text;
+    widget.sitio['contacto'] = contactoController.text;
+    widget.sitio['Litio'] = litioController.text;
+    widget.sitio['Zuncho'] = zunchoController.text;
+    widget.sitio['Detalle'] = detalleController.text;
+    widget.onUpdate();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Datos guardados!')));
+  }
+
+  void _agregarVisita() {
+    if (nuevaVisitaController.text.trim().isEmpty) return;
+    final ahora = DateTime.now();
+    final fechaStr = "${ahora.day}/${ahora.month}/${ahora.year} ${ahora.hour}:${ahora.minute.toString().padLeft(2, '0')}";
+    setState(() {
+      widget.sitio['_historialVisitas'].insert(0, {"fecha": fechaStr, "texto": nuevaVisitaController.text.trim()});
+      nuevaVisitaController.clear();
+    });
+    widget.onUpdate();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    List historial = widget.sitio['_historialVisitas'];
+    return Scaffold(
+      appBar: AppBar(title: Text('${widget.sitio['Código']} (${widget.sitio['Nombre']})'), backgroundColor: Colors.blue[800]),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(controller: contactoController, decoration: const InputDecoration(labelText: 'Contacto', border: OutlineInputBorder())),
+            const SizedBox(height: 10),
+            TextField(controller: llavesController, decoration: const InputDecoration(labelText: 'Llaves de acceso', border: OutlineInputBorder())),
+            const SizedBox(height: 10),
+            TextField(controller: detalleController, maxLines: 2, decoration: const InputDecoration(labelText: 'Detalle', border: OutlineInputBorder())),
+            const SizedBox(height: 15),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(8)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('📝 Historial de Visitas (${historial.length})', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                  const SizedBox(height: 8),
+                  ...historial.map((v) => Card(child: Padding(padding: const EdgeInsets.all(8.0), child: Text('${v['fecha']}: ${v['texto']}')))),
+                  const SizedBox(height: 10),
+                  TextField(controller: nuevaVisitaController, decoration: const InputDecoration(labelText: 'Nueva visita', border: OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  ElevatedButton(onPressed: _agregarVisita, child: const Text('Guardar Visita')),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: _guardarCambios, child: const Text('💾 Guardar Cambios')),
+          ],
+        ),
+      ),
+    );
+  }
+}
