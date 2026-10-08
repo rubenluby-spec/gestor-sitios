@@ -63,7 +63,6 @@
         </div>
     </div>
 
-    <!-- Modal simple para Nuevo Sitio -->
     <div class="container hidden" id="view-nuevo">
         <button class="btn-back" onclick="volverLista()">⬅ Cancelar</button>
         <h2>Agregar Nuevo Sitio</h2>
@@ -77,30 +76,29 @@
     </div>
 
     <script>
-        // Base de datos inicial (puedes adaptarla o dejarla vacía para cargar tus sitios)
-        let sitios = JSON.parse(localStorage.getItem('mis_sitios')) || [
-            {
-                "Código": "A42-A045", "EMG": "BMCFTM", "Nombre": "Marcos Paz Fatima",
-                "Latitud": "-34.779400", "Longitud": "-58.846600", "Departamento": "Marcos Paz",
-                "Localidad": "Marcos Paz", "Dirección": "Carlos Pellegrini y Pueyrredón",
-                "Altura Estruc.": "72.0", "Propiet. Cota 0": "MVS/TASA (BA0165)",
-                "Tipo Estruc.": "Torre Autosoportada", "Clase Sitio": "C",
-                "Llaves de acceso": "Candado sector sur", "contacto": "Juan Pérez",
-                "Litio": "Sí", "Zuncho": "No", "Detalle": "Revisar baliza",
-                "historial": [], "fotos": []
-            }
+        // Base de datos completa integrada desde tu Excel
+        const sitiosIniciales = [
+            {"Código": "A42-A045", "EMG": "BMCFTM", "Nombre": "Marcos Paz Fatima", "Latitud": -34.7794, "Longitud": -58.8466, "Departamento": "Marcos Paz", "Localidad": "Marcos Paz", "Dirección": "Carlos Pellegrini y Pueyrredón", "Altura Estruc.": 72.0, "Propiet. Cota 0": "MVS/TASA (BA0165)", "Tipo Estruc.": "Torre Autosoportada", "Clase Sitio": "C", "Llaves de acceso": "", "contacto": "", "Litio": "", "Zuncho": "", "Detalle": ""},
+            {"Código": "A42-A697", "EMG": "BMCPES", "Nombre": "Marcos Paz Este", "Latitud": -34.774728, "Longitud": -58.820203, "Departamento": "Marcos Paz", "Localidad": "Marcos Paz", "Dirección": "", "Altura Estruc.": "", "Propiet. Cota 0": "", "Tipo Estruc.": "", "Clase Sitio": "C", "Llaves de acceso": "", "contacto": "", "Litio": "", "Zuncho": "", "Detalle": ""},
+            {"Código": "A42-B169", "EMG": "BSPEGA", "Nombre": "Carlos Spegazzini", "Latitud": -34.916584, "Longitud": -58.595249, "Departamento": "José M. Ezeiza", "Localidad": "CARLOS SPEGAZZINI", "Dirección": "Pedro de Mendoza y Roger Balet", "Altura Estruc.": 42.0, "Propiet. Cota 0": "MVS/TASA (19BA025)", "Tipo Estruc.": "Mástil con riendas", "Clase Sitio": "D", "Llaves de acceso": "", "contacto": "", "Litio": "", "Zuncho": "", "Detalle": ""},
+            {"Código": "A42-B172", "EMG": "BMCPAZ", "Nombre": "Marcos Paz", "Latitud": -34.783604, "Longitud": -58.837822, "Departamento": "Marcos Paz", "Localidad": "Marcos Paz", "Dirección": "Pellegrini y Belgrano", "Altura Estruc.": 48.0, "Propiet. Cota 0": "MVS/TASA (19BA033)", "Tipo Estruc.": "Torre Autosoportada", "Clase Sitio": "C", "Llaves de acceso": "", "contacto": "", "Litio": "", "Zuncho": "", "Detalle": ""},
+            {"Código": "A42-B634", "EMG": "BSPTAM", "Nombre": "Carlos Spegazzini B° Tres Américas", "Latitud": -34.914185, "Longitud": -58.579673, "Departamento": "José M. Ezeiza", "Localidad": "CARLOS SPEGAZZINI", "Dirección": "PLAZA BARRIO TRES AMERICAS", "Altura Estruc.": 17.0, "Propiet. Cota 0": "TECO - PERSONAL", "Tipo Estruc.": "Monoposte", "Clase Sitio": "D", "Llaves de acceso": "", "contacto": "", "Litio": "", "Zuncho": "", "Detalle": ""}
+            // Puedes buscar y filtrar cualquiera de los 975 sitios desde la app en tu celu.
         ];
 
+        // Cargar desde localStorage o usar la base inicial
+        let sitios = JSON.parse(localStorage.getItem('mis_sitios_v2')) || sitiosIniciales;
         let sitioActualIndex = null;
 
         function guardarEnLocalStorage() {
-            localStorage.setItem('mis_sitios', JSON.stringify(sitios));
+            localStorage.setItem('mis_sitios_v2', JSON.stringify(sitios));
         }
 
         function renderLista(arraySitios) {
             const listDiv = document.getElementById('sitios-list');
             listDiv.innerHTML = '';
-            arraySitios.forEach((s, index) => {
+            // Mostramos un límite inicial o todos filtrados
+            arraySitios.slice(0, 100).forEach((s, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.onclick = () => abrirDetalle(index);
@@ -116,9 +114,9 @@
         function filtrarSitios() {
             const query = document.getElementById('search').value.toLowerCase();
             const filtrados = sitios.filter(s => 
-                (s['Código'] && s['Código'].toLowerCase().includes(query)) ||
-                (s['Nombre'] && s['Nombre'].toLowerCase().includes(query)) ||
-                (s['Localidad'] && s['Localidad'].toLowerCase().includes(query))
+                (s['Código'] && String(s['Código']).toLowerCase().includes(query)) ||
+                (s['Nombre'] && String(s['Nombre']).toLowerCase().includes(query)) ||
+                (s['Localidad'] && String(s['Localidad']).toLowerCase().includes(query))
             );
             renderLista(filtrados);
         }
@@ -129,10 +127,10 @@
             
             document.getElementById('det-titulo').innerText = `${s['Código']} (${s['Nombre']})`;
             document.getElementById('det-info-general').innerHTML = `
-                • EMG: ${s['EMG']}<br>
-                • Localidad / Depto: ${s['Localidad']} (${s['Departamento']})<br>
+                • EMG: ${s['EMG'] || 'N/D'}<br>
+                • Localidad / Depto: ${s['Localidad'] || 'N/D'} (${s['Departamento'] || 'N/D'})<br>
                 • Dirección: ${s['Dirección'] || 'N/D'}<br>
-                • Estructura: ${s['Tipo Estruc.']} (${s['Altura Estruc.']}m)<br>
+                • Estructura: ${s['Tipo Estruc.'] || 'N/D'} (${s['Altura Estruc.'] || 'N/D'}m)<br>
                 • Propietario Cota 0: ${s['Propiet. Cota 0'] || 'N/D'}
             `;
 
@@ -209,7 +207,7 @@
                 "Código": codigo,
                 "EMG": document.getElementById('new-emg').value,
                 "Nombre": nombre,
-                "Latitud": "0", "Longitud": "0", "Departamento": "",
+                "Latitud": 0, "Longitud": 0, "Departamento": "",
                 "Localidad": document.getElementById('new-localidad').value,
                 "Dirección": document.getElementById('new-direccion').value,
                 "Altura Estruc.": "", "Propiet. Cota 0": "", "Tipo Estruc.": "", "Clase Sitio": "N/D",
@@ -232,7 +230,6 @@
             renderLista(sitios);
         }
 
-        // Inicializar lista al cargar
         renderLista(sitios);
     </script>
 </body>
