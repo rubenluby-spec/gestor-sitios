@@ -102,11 +102,11 @@
     </div>
 
     <script>
-        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v6')) || [];
-        let sitioActualIndex = null;
+        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v8')) || [];
+        let codigoSeleccionado = null;
 
         function guardarEnLocalStorage() {
-            localStorage.setItem('mis_sitios_real_v6', JSON.stringify(sitios));
+            localStorage.setItem('mis_sitios_real_v8', JSON.stringify(sitios));
         }
 
         function cargarExcel(e) {
@@ -119,19 +119,37 @@
                 const firstSheet = workbook.SheetNames[0];
                 const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
                 
-                sitios = sheetData.map(s => ({
-                    ...s,
-                    "historial": s.historial || [],
-                    "fotos": s.fotos || [],
-                    "contacto": s.contacto || s["contacto"] || "",
-                    "Llaves de acceso": s["Llaves de acceso"] || s["Llaves"] || "",
-                    "Litio": s.Litio || "",
-                    "Zuncho": s.Zuncho || "",
-                    "Detalle": s.Detalle || ""
-                }));
+                sitios = sheetData.map(nuevo => {
+                    const codNuevo = String(nuevo['Código'] || nuevo['Codigo'] || '').trim();
+                    const existente = sitios.find(s => String(s['Código'] || s['Codigo'] || '').trim() === codNuevo);
+                    if (existente) {
+                        return {
+                            ...nuevo,
+                            "historial": existente.historial || [],
+                            "fotos": existente.fotos || [],
+                            "contacto": existente.contacto !== undefined ? existente.contacto : (nuevo.contacto || ""),
+                            "Llaves de acceso": existente["Llaves de acceso"] !== undefined ? existente["Llaves de acceso"] : (nuevo["Llaves de acceso"] || nuevo["Llaves"] || ""),
+                            "Litio": existente.Litio !== undefined ? existente.Litio : (nuevo.Litio || ""),
+                            "Zuncho": existente.Zuncho !== undefined ? existente.Zuncho : (nuevo.Zuncho || ""),
+                            "Detalle": existente.Detalle !== undefined ? existente.Detalle : (nuevo.Detalle || "")
+                        };
+                    } else {
+                        return {
+                            ...nuevo,
+                            "historial": [],
+                            "fotos": [],
+                            "contacto": nuevo.contacto || "",
+                            "Llaves de acceso": nuevo["Llaves de acceso"] || nuevo["Llaves"] || "",
+                            "Litio": nuevo.Litio || "",
+                            "Zuncho": nuevo.Zuncho || "",
+                            "Detalle": nuevo.Detalle || ""
+                        };
+                    }
+                });
+
                 guardarEnLocalStorage();
                 renderLista(sitios);
-                alert(`¡Se cargaron ${sitios.length} sitios con todas sus columnas correctamente!`);
+                alert(`¡Se cargaron ${sitios.length} sitios correctamente!`);
             };
             reader.readAsArrayBuffer(file);
         }
@@ -143,14 +161,21 @@
                 listDiv.innerHTML = '<p style="text-align:center; color:#888;">No hay sitios cargados. Selecciona tu archivo Excel arriba.</p>';
                 return;
             }
-            arraySitios.slice(0, 100).forEach((s, index) => {
+            arraySitios.slice(0, 100).forEach((s) => {
+                const codigo = String(s['Código'] || s['Codigo'] || '').trim();
+                const nombre = s['Nombre'] || 'Sin Nombre';
+                const localidad = s['Localidad'] || s['Localidad/Partido'] || 'N/D';
+                const emg = s['EMG'] || 'N/D';
+                const contacto = s['contacto'] || 'Sin contacto';
+
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.onclick = () => abrirDetalle(index);
+                // Pasamos explícitamente el código como texto seguro
+                card.onclick = function() { abrirDetalle(codigo); };
                 card.innerHTML = `
-                    <h3>${s['Código'] || s['Codigo'] || 'S/C'} - ${s['Nombre'] || 'Sin Nombre'}</h3>
-                    <p><strong>Localidad:</strong> ${s['Localidad'] || s['Localidad/Partido'] || 'N/D'} | <strong>EMG:</strong> ${s['EMG'] || 'N/D'}</p>
-                    <p><strong>Contacto:</strong> ${s['contacto'] || 'Sin contacto'}</p>
+                    <h3>${codigo} - ${nombre}</h3>
+                    <p><strong>Localidad:</strong> ${localidad} | <strong>EMG:</strong> ${emg}</p>
+                    <p><strong>Contacto:</strong> ${contacto}</p>
                 `;
                 listDiv.appendChild(card);
             });
@@ -174,11 +199,15 @@
             renderLista(filtrados);
         }
 
-        function abrirDetalle(index) {
-            sitioActualIndex = index;
-            const s = sitios[index];
+        function obtenerSitioActual() {
+            return sitios.find(s => String(s['Código'] || s['Codigo'] || '').trim() === String(codigoSeleccionado).trim());
+        }
+
+        function abrirDetalle(codigo) {
+            codigoSeleccionado = codigo;
+            const s = obtenerSitioActual();
+            if (!s) return;
             
-            const codigo = s['Código'] || s['Codigo'] || 'S/C';
             const nombre = s['Nombre'] || 'Sin Nombre';
             document.getElementById('det-titulo').innerText = `${codigo} (${nombre})`;
             
@@ -206,22 +235,24 @@
         }
 
         function guardarCambiosSitio() {
-            if (sitioActualIndex === null) return;
-            sitios[sitioActualIndex]['contacto'] = document.getElementById('edit-contacto').value;
-            sitios[sitioActualIndex]['Llaves de acceso'] = document.getElementById('edit-llaves').value;
-            sitios[sitioActualIndex]['Litio'] = document.getElementById('edit-litio').value;
-            sitios[sitioActualIndex]['Zuncho'] = document.getElementById('edit-zuncho').value;
-            sitios[sitioActualIndex]['Detalle'] = document.getElementById('edit-detalle').value;
+            let s = obtenerSitioActual();
+            if (!s) return;
+            s['contacto'] = document.getElementById('edit-contacto').value;
+            s['Llaves de acceso'] = document.getElementById('edit-llaves').value;
+            s['Litio'] = document.getElementById('edit-litio').value;
+            s['Zuncho'] = document.getElementById('edit-zuncho').value;
+            s['Detalle'] = document.getElementById('edit-detalle').value;
             
             guardarEnLocalStorage();
             alert('¡Cambios guardados con éxito!');
         }
 
         function abrirGoogleMaps() {
-            const s = sitios[sitioActualIndex];
+            const s = obtenerSitioActual();
+            if (!s) return;
             const lat = s['Latitud'] || s['Lat'];
             const lon = s['Longitud'] || s['Lon'] || s['Long'];
-            if (lat && lon && lat !== 0 && lon !== 0) {
+            if (lat && lon && lat !== 0 && lat !== '0') {
                 window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
             } else {
                 const dir = s['Dirección'] || s['Direccion'] || '';
@@ -233,7 +264,9 @@
 
         function renderFotos() {
             const container = document.getElementById('photo-grid-container');
-            const fotos = sitios[sitioActualIndex]['fotos'] || [];
+            const s = obtenerSitioActual();
+            if (!s) return;
+            const fotos = s['fotos'] || [];
             container.innerHTML = '';
 
             for (let i = 0; i < 4; i++) {
@@ -253,8 +286,10 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(event) {
-                if (!sitios[sitioActualIndex]['fotos']) sitios[sitioActualIndex]['fotos'] = [];
-                sitios[sitioActualIndex]['fotos'][index] = event.target.result;
+                let s = obtenerSitioActual();
+                if (!s) return;
+                if (!s['fotos']) s['fotos'] = [];
+                s['fotos'][index] = event.target.result;
                 guardarEnLocalStorage();
                 renderFotos();
             };
@@ -262,7 +297,9 @@
         }
 
         function eliminarFoto(index) {
-            sitios[sitioActualIndex]['fotos'].splice(index, 1);
+            let s = obtenerSitioActual();
+            if (!s) return;
+            s['fotos'].splice(index, 1);
             guardarEnLocalStorage();
             renderFotos();
         }
@@ -274,11 +311,13 @@
             const ahora = new Date();
             const fechaStr = `${ahora.getDate()}/${ahora.getMonth()+1}/${ahora.getFullYear()} ${ahora.getHours()}:${String(ahora.getMinutes()).padStart(2, '0')}`;
 
-            if (!sitios[sitioActualIndex]['historial']) {
-                sitios[sitioActualIndex]['historial'] = [];
+            let s = obtenerSitioActual();
+            if (!s) return;
+            if (!s['historial']) {
+                s['historial'] = [];
             }
 
-            sitios[sitioActualIndex]['historial'].unshift({ fecha: fechaStr, texto: texto });
+            s['historial'].unshift({ fecha: fechaStr, texto: texto });
             document.getElementById('nueva-visita').value = '';
             guardarEnLocalStorage();
             renderHistorial();
@@ -286,7 +325,9 @@
 
         function renderHistorial() {
             const container = document.getElementById('historial-container');
-            const historial = sitios[sitioActualIndex]['historial'] || [];
+            const s = obtenerSitioActual();
+            if (!s) return;
+            const historial = s['historial'] || [];
             if (historial.length === 0) {
                 container.innerHTML = '<p style="color:#888; font-size:0.85rem;">No hay visitas registradas.</p>';
                 return;
@@ -300,10 +341,11 @@
         }
 
         function enviarWhatsApp() {
-            const s = sitios[sitioActualIndex];
+            const s = obtenerSitioActual();
+            if (!s) return;
             const lat = s['Latitud'] || s['Lat'];
             const lon = s['Longitud'] || s['Lon'] || s['Long'];
-            let mapsUrl = (lat && lon && lat !== 0 && lon !== 0) 
+            let mapsUrl = (lat && lon && lat !== 0 && lat !== '0') 
                 ? `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
                 : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((s['Dirección'] || s['Direccion'] || '') + ', ' + (s['Localidad'] || ''))}`;
 
@@ -315,7 +357,6 @@
             const propietario = s['Propiet. Cota 0'] || s['Propietario'] || s['Dueño'] || 'N/D';
             const llaves = s['Llaves de acceso'] || s['Llaves'] || 'N/D';
 
-            // Armado del mensaje SIN el historial de visitas
             let texto = `*REPORTE DE SITIO CELULAR*%0A`;
             texto += `----------------------------------%0A`;
             texto += `📌 *Código:* ${codigo}%0A`;
