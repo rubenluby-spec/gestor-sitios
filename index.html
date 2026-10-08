@@ -78,7 +78,7 @@
         </div>
 
         <div class="section-box">
-            <strong>📝 Historial de Visitas</strong>
+            <strong>📝 Historial de Visitas (Privado)</strong>
             <div id="historial-container"></div>
             <textarea id="nueva-visita" placeholder="Escribe el reporte de la visita o trabajo realizado..." rows="2" style="margin-top: 10px;"></textarea>
             <button class="btn-success" onclick="agregarVisita()">➕ Registrar Visita</button>
@@ -102,11 +102,11 @@
     </div>
 
     <script>
-        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v5')) || [];
+        let sitios = JSON.parse(localStorage.getItem('mis_sitios_real_v6')) || [];
         let sitioActualIndex = null;
 
         function guardarEnLocalStorage() {
-            localStorage.setItem('mis_sitios_real_v5', JSON.stringify(sitios));
+            localStorage.setItem('mis_sitios_real_v6', JSON.stringify(sitios));
         }
 
         function cargarExcel(e) {
@@ -182,7 +182,6 @@
             const nombre = s['Nombre'] || 'Sin Nombre';
             document.getElementById('det-titulo').innerText = `${codigo} (${nombre})`;
             
-            // Mostrar dinámicamente TODAS las columnas del Excel (excepto las internas nuestras)
             let htmlInfo = '';
             for (let key in s) {
                 if (key !== 'historial' && key !== 'fotos' && key !== 'contacto' && key !== 'Llaves de acceso' && key !== 'Litio' && key !== 'Zuncho' && key !== 'Detalle') {
@@ -316,7 +315,8 @@
             const propietario = s['Propiet. Cota 0'] || s['Propietario'] || s['Dueño'] || 'N/D';
             const llaves = s['Llaves de acceso'] || s['Llaves'] || 'N/D';
 
-            let texto = `*Info del SITIO*%0A`;
+            // Armado del mensaje SIN el historial de visitas
+            let texto = `*REPORTE DE SITIO CELULAR*%0A`;
             texto += `----------------------------------%0A`;
             texto += `📌 *Código:* ${codigo}%0A`;
             texto += `🏢 *Nombre:* ${nombre}%0A`;
@@ -328,12 +328,7 @@
             texto += `🏗️ *Estructura Propietario:* ${propietario}%0A`;
             texto += `🔑 *Llaves de Ingreso:* ${llaves}%0A`;
             texto += `🗺️ *Google Maps:* ${mapsUrl}%0A`;
-            texto += `----------------------------------%0A`;
-            
-            const historial = s['historial'] || [];
-            if (historial.length > 0) {
-                texto += `📝 *Última Visita (${historial[0].fecha}):* ${historial[0].texto}`;
-            }
+            texto += `----------------------------------`;
 
             window.open(`https://api.whatsapp.com/send?text=${texto}`, '_blank');
         }
